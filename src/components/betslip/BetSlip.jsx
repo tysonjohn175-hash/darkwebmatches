@@ -4,23 +4,6 @@ import BetSlipItem from './BetSlipItem'
 import { X, Trash2 } from 'lucide-react'
 
 const BetSlip = () => {
-  try {
-    const {
-      selections,
-      stake,
-      setStake,
-      isOpen,
-      closeBetSlip,
-      removeSelection,
-      clearSelections,
-      getTotalOdds,
-      getPotentialWinnings,
-      placeBet,
-    } = useBet()
-  } catch (error) {
-    return null
-  }
-
   const {
     selections,
     stake,

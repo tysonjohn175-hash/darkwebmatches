@@ -1,18 +1,16 @@
 import { useLocation } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useBet } from '../../context/BetContext'
-import { ShoppingCart } from 'lucide-react'
 
 const BetSlipFloatingButton = () => {
   const { selections, openBetSlip } = useBet()
   const location = useLocation()
   const count = selections.length
 
-  // Only show on homepage and if there are selections
-  if (location.pathname !== '/') return null
-  if (count === 0) return null
+  // ✅ Show on homepage AND match details page
+  if (location.pathname !== '/' && !location.pathname.startsWith('/match/')) return null
 
-  // Position state (default bottom‑right)
+  // Position state (default bottom-right)
   const [position, setPosition] = useState(() => {
     const x = window.innerWidth - 80
     const y = window.innerHeight - 120
@@ -22,7 +20,6 @@ const BetSlipFloatingButton = () => {
   const dragRef = useRef(null)
   const offsetRef = useRef({ x: 0, y: 0 })
 
-  // Mouse drag handlers
   const handleMouseDown = (e) => {
     e.preventDefault()
     setIsDragging(true)
@@ -37,10 +34,9 @@ const BetSlipFloatingButton = () => {
 
   const handleMouseMove = (e) => {
     if (!isDragging) return
-    const btnWidth = 80
-    const btnHeight = 80
-    const maxX = window.innerWidth - btnWidth
-    const maxY = window.innerHeight - btnHeight
+    const btnSize = 60
+    const maxX = window.innerWidth - btnSize
+    const maxY = window.innerHeight - btnSize
     const newX = e.clientX - offsetRef.current.x
     const newY = e.clientY - offsetRef.current.y
     setPosition({
@@ -55,7 +51,6 @@ const BetSlipFloatingButton = () => {
     document.removeEventListener('mouseup', handleMouseUp)
   }
 
-  // Touch drag handlers
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
     const rect = dragRef.current.getBoundingClientRect()
@@ -71,10 +66,9 @@ const BetSlipFloatingButton = () => {
   const handleTouchMove = (e) => {
     if (!isDragging) return
     const touch = e.touches[0]
-    const btnWidth = 80
-    const btnHeight = 80
-    const maxX = window.innerWidth - btnWidth
-    const maxY = window.innerHeight - btnHeight
+    const btnSize = 60
+    const maxX = window.innerWidth - btnSize
+    const maxY = window.innerHeight - btnSize
     const newX = touch.clientX - offsetRef.current.x
     const newY = touch.clientY - offsetRef.current.y
     setPosition({
@@ -89,7 +83,6 @@ const BetSlipFloatingButton = () => {
     document.removeEventListener('touchend', handleTouchEnd)
   }
 
-  // Click – only open if not dragging
   const handleClick = (e) => {
     if (isDragging) return
     openBetSlip()
@@ -101,17 +94,16 @@ const BetSlipFloatingButton = () => {
       onClick={handleClick}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
-      className="fixed z-50 bg-primary text-white p-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-primary/80 transition touch-none select-none"
+      className="fixed z-50 bg-primary text-white rounded-full shadow-lg flex items-center justify-center transition hover:bg-secondary touch-none select-none"
       style={{
         left: position.x,
         top: position.y,
+        width: '60px',
+        height: '60px',
         cursor: isDragging ? 'grabbing' : 'grab',
       }}
     >
-      <ShoppingCart size={24} />
-      <span className="bg-white text-dark rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-        {count}
-      </span>
+      <span className="text-xl font-bold">{count}</span>
     </button>
   )
 }
