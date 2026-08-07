@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useSupabase } from '../../context/SupabaseContext'
-import { User, LogIn, UserPlus, LogOut, Wallet } from 'lucide-react'
+import { User, LogIn, UserPlus, LogOut, Wallet, Skull } from 'lucide-react'
 
 const Navbar = () => {
   const { user, balance, signOut } = useSupabase()
@@ -11,15 +11,17 @@ const Navbar = () => {
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-dark/90 backdrop-blur-sm border-b border-white/10">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-dark/95 backdrop-blur-sm border-b border-primary/20">
       <div className="container mx-auto px-4 flex items-center justify-between h-14">
-        <Link to="/" className="text-2xl font-bold text-primary">
-          BETZONE
+        {/* Three skulls - toxic level 3 */}
+        <Link to="/" className="flex items-center gap-1 text-white hover:text-primary transition group">
+          <Skull size={28} className="group-hover:text-primary transition" />
+          <Skull size={28} className="group-hover:text-primary transition" />
+          <Skull size={28} className="group-hover:text-primary transition" />
         </Link>
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              {/* ✅ Show balance ONLY for non-admin users */}
               {!isAdmin && balance && (
                 <Link to="/wallet" className="text-sm text-green-400 hover:text-green-300 flex items-center gap-1 bg-green-500/10 px-2 py-1 rounded-lg">
                   <Wallet size={16} />
@@ -42,7 +44,7 @@ const Navbar = () => {
                 <LogIn size={18} />
                 <span>Login</span>
               </Link>
-              <Link to="/register" className="text-sm bg-primary hover:bg-primary/80 text-white px-4 py-1.5 rounded-lg flex items-center gap-1">
+              <Link to="/register" className="text-sm bg-primary hover:bg-secondary text-white px-4 py-1.5 rounded-lg flex items-center gap-1">
                 <UserPlus size={18} />
                 <span>Join Now</span>
               </Link>
