@@ -15,6 +15,7 @@ const UserList = () => {
   const refreshUsers = async () => {
     const data = await getAllUsers()
     setUsers(data)
+    // ✅ Fetch balances for all users
     if (data.length > 0) {
       const userIds = data.map(u => u.id)
       const { data: balanceData, error } = await supabase
@@ -27,6 +28,8 @@ const UserList = () => {
           balanceMap[b.user_id] = { available: b.available || 0, withdrawable: b.withdrawable || 0 }
         })
         setBalances(balanceMap)
+      } else {
+        console.warn('Failed to fetch balances:', error)
       }
     }
   }
@@ -105,8 +108,12 @@ const UserList = () => {
                       {u.active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="py-2 text-green-400 font-mono">GHS {balance.available.toFixed(2)}</td>
-                  <td className="py-2 text-yellow-400 font-mono">GHS {balance.withdrawable.toFixed(2)}</td>
+                  <td className="py-2 text-green-400 font-mono">
+                    {u.currency || 'GHS'} {balance.available.toFixed(2)}
+                  </td>
+                  <td className="py-2 text-yellow-400 font-mono">
+                    {u.currency || 'GHS'} {balance.withdrawable.toFixed(2)}
+                  </td>
                   <td className="py-2 flex gap-1 flex-wrap">
                     <button
                       onClick={() => handleToggleActive(u.email)}
@@ -118,7 +125,6 @@ const UserList = () => {
                     >
                       {u.active ? 'Deactivate' : 'Activate'}
                     </button>
-                    {/* ✅ "Make Admin" button REMOVED */}
                     {u.email !== 'admin@betzone.com' && (
                       <button
                         onClick={() => handleDeleteUser(u.email, u.name)}

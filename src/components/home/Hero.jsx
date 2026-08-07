@@ -5,13 +5,13 @@ const Hero = () => {
     <section className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-6 text-white text-center shadow-lg">
       <div className="flex flex-col items-center">
         <span className="text-sm bg-yellow-400 text-dark px-3 py-1 rounded-full font-semibold mb-2">
-          NEW CUSTOMER OFFER
+          🎁 NEW USER OFFER
         </span>
         <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-          100% WELCOME BONUS
+          Join Now for <span className="text-accent">$10 USD</span> Free Bet
         </h1>
         <p className="text-xl md:text-2xl font-light mt-2">
-          Up to <span className="font-bold text-accent">GHS 100</span> on your first deposit
+          Get started with a free bet on us
         </p>
         <Link
           to="/register"
