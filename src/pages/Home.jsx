@@ -10,7 +10,7 @@ import { Search, X, CalendarDays } from 'lucide-react'
 const Home = () => {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const { customMatches } = useMatchEngine()
+  const { customMatches, loading: matchLoading } = useMatchEngine()
   const { user } = useSupabase()
   const isAdmin = user?.role === 'admin'
 
@@ -28,7 +28,7 @@ const Home = () => {
         id: `custom_${match.id}`,
         status: {
           short: isLive ? 'LIVE' : isUpcoming ? 'NS' : 'FT',
-          elapsed: match.elapsed || 0,
+          elapsed: match.elapsedSeconds || 0,
           long: isLive ? 'Live' : isUpcoming ? 'Not Started' : 'Finished',
         },
         date: match.startTime,
@@ -89,7 +89,7 @@ const Home = () => {
   const filteredMatches = getFilteredCustomMatches()
   const isSearching = searchQuery.trim().length > 0
 
-  if (loading) {
+  if (loading || matchLoading) {
     return (
       <div className="space-y-4 pb-4">
         <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl h-48 animate-pulse" />
@@ -141,9 +141,10 @@ const Home = () => {
     )
   }
 
-  const showCarousel = user && allUpcoming.length > 0
+  // ✅ Carousel appears when there are 2 or more upcoming matches
+  const showCarousel = user && allUpcoming.length >= 2
   const showLive = allLive.length > 0
-  const noMatchesMessage = user && !showCarousel && !showLive
+  const noMatchesMessage = user && !showCarousel && !showLive && allUpcoming.length === 0
 
   return (
     <div className="space-y-6 pb-4">
@@ -188,6 +189,7 @@ const Home = () => {
           {showCarousel ? (
             <HeroCarousel matches={allUpcoming} />
           ) : (
+            // ✅ If only 1 upcoming match, show hero instead
             <Hero />
           )}
 

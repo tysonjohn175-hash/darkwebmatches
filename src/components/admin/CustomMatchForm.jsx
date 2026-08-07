@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMatchEngine } from '../../context/MatchEngineContext'
+import { useNotification } from '../../context/NotificationContext'
 
 const CustomMatchForm = () => {
   const [homeTeam, setHomeTeam] = useState('')
@@ -13,7 +14,6 @@ const CustomMatchForm = () => {
   const [startTime, setStartTime] = useState(getDefaultStartTime)
   const [finalHomeScore, setFinalHomeScore] = useState('')
   const [finalAwayScore, setFinalAwayScore] = useState('')
-  // ✅ GOAL MINUTES FIELDS – add these
   const [homeGoalMinutes, setHomeGoalMinutes] = useState('')
   const [awayGoalMinutes, setAwayGoalMinutes] = useState('')
   const [oddsHome, setOddsHome] = useState('')
@@ -35,6 +35,7 @@ const CustomMatchForm = () => {
   })
   const [error, setError] = useState('')
   const { addCustomMatch } = useMatchEngine()
+  const { showNotification } = useNotification()
 
   const handleOverUnderChange = (line, type, value) => {
     setOverUnderOdds(prev => ({
@@ -70,83 +71,86 @@ const CustomMatchForm = () => {
     return str.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n) && n > 0 && n < 90)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!homeTeam || !awayTeam || !league || !startTime) {
       setError('All basic fields required')
       return
     }
 
-    const markets = {
-      h2h: {
-        home: parseFloat(oddsHome) || 2.00,
-        draw: parseFloat(oddsDraw) || 3.50,
-        away: parseFloat(oddsAway) || 3.00,
-      },
-      overUnder: Object.keys(overUnderOdds).reduce((acc, line) => {
-        const val = overUnderOdds[line]
-        if (val.over && val.under) {
-          acc[line] = { over: parseFloat(val.over), under: parseFloat(val.under) }
-        }
-        return acc
-      }, {}),
-      correctScore: correctScores.reduce((acc, cs) => {
-        if (cs.odds) acc[cs.score] = parseFloat(cs.odds)
-        return acc
-      }, {}),
-      htft: Object.keys(htftOdds).reduce((acc, key) => {
-        if (htftOdds[key]) acc[key] = parseFloat(htftOdds[key])
-        return acc
-      }, {}),
+    try {
+      const result = await addCustomMatch({
+        homeTeam,
+        awayTeam,
+        league,
+        startTime,
+        finalHomeScore: parseInt(finalHomeScore) || 0,
+        finalAwayScore: parseInt(finalAwayScore) || 0,
+        homeGoalMinutes: parseMinutes(homeGoalMinutes),
+        awayGoalMinutes: parseMinutes(awayGoalMinutes),
+        markets: {
+          h2h: {
+            home: parseFloat(oddsHome) || 2.00,
+            draw: parseFloat(oddsDraw) || 3.50,
+            away: parseFloat(oddsAway) || 3.00,
+          },
+          overUnder: Object.keys(overUnderOdds).reduce((acc, line) => {
+            const val = overUnderOdds[line]
+            if (val.over && val.under) {
+              acc[line] = { over: parseFloat(val.over), under: parseFloat(val.under) }
+            }
+            return acc
+          }, {}),
+          correctScore: correctScores.reduce((acc, cs) => {
+            if (cs.odds) acc[cs.score] = parseFloat(cs.odds)
+            return acc
+          }, {}),
+          htft: Object.keys(htftOdds).reduce((acc, key) => {
+            if (htftOdds[key]) acc[key] = parseFloat(htftOdds[key])
+            return acc
+          }, {}),
+        },
+      })
+
+      showNotification(`✅ Match created! ${homeTeam} vs ${awayTeam} will start at ${new Date(startTime).toLocaleString()}`, 'success')
+
+      // Reset form
+      setHomeTeam('')
+      setAwayTeam('')
+      setLeague('')
+      setStartTime(getDefaultStartTime())
+      setFinalHomeScore('')
+      setFinalAwayScore('')
+      setHomeGoalMinutes('')
+      setAwayGoalMinutes('')
+      setOddsHome('')
+      setOddsDraw('')
+      setOddsAway('')
+      setOverUnderOdds({})
+      setCorrectScores([
+        { score: '1-0', odds: '' }, { score: '2-0', odds: '' }, { score: '2-1', odds: '' },
+        { score: '3-0', odds: '' }, { score: '3-1', odds: '' }, { score: '3-2', odds: '' },
+        { score: '0-0', odds: '' }, { score: '1-1', odds: '' }, { score: '2-2', odds: '' },
+        { score: '0-1', odds: '' }, { score: '0-2', odds: '' }, { score: '1-2', odds: '' },
+        { score: '0-3', odds: '' }, { score: '1-3', odds: '' }, { score: '2-3', odds: '' },
+      ])
+      setCustomScore({ home: '', away: '', odds: '' })
+      setHtftOdds({
+        'Home/Home': '', 'Home/Draw': '', 'Home/Away': '',
+        'Draw/Home': '', 'Draw/Draw': '', 'Draw/Away': '',
+        'Away/Home': '', 'Away/Draw': '', 'Away/Away': '',
+      })
+      setError('')
+    } catch (err) {
+      console.error(err)
+      showNotification('❌ Failed to create match: ' + err.message, 'error')
     }
-
-    addCustomMatch({
-      homeTeam,
-      awayTeam,
-      league,
-      startTime,
-      markets,
-      finalHomeScore: parseInt(finalHomeScore) || 0,
-      finalAwayScore: parseInt(finalAwayScore) || 0,
-      // ✅ Pass goal minutes
-      homeGoalMinutes: parseMinutes(homeGoalMinutes),
-      awayGoalMinutes: parseMinutes(awayGoalMinutes),
-    })
-
-    // Reset form
-    setHomeTeam('')
-    setAwayTeam('')
-    setLeague('')
-    setStartTime(getDefaultStartTime())
-    setFinalHomeScore('')
-    setFinalAwayScore('')
-    setHomeGoalMinutes('')
-    setAwayGoalMinutes('')
-    setOddsHome('')
-    setOddsDraw('')
-    setOddsAway('')
-    setOverUnderOdds({})
-    setCorrectScores([
-      { score: '1-0', odds: '' }, { score: '2-0', odds: '' }, { score: '2-1', odds: '' },
-      { score: '3-0', odds: '' }, { score: '3-1', odds: '' }, { score: '3-2', odds: '' },
-      { score: '0-0', odds: '' }, { score: '1-1', odds: '' }, { score: '2-2', odds: '' },
-      { score: '0-1', odds: '' }, { score: '0-2', odds: '' }, { score: '1-2', odds: '' },
-      { score: '0-3', odds: '' }, { score: '1-3', odds: '' }, { score: '2-3', odds: '' },
-    ])
-    setCustomScore({ home: '', away: '', odds: '' })
-    setHtftOdds({
-      'Home/Home': '', 'Home/Draw': '', 'Home/Away': '',
-      'Draw/Home': '', 'Draw/Draw': '', 'Draw/Away': '',
-      'Away/Home': '', 'Away/Draw': '', 'Away/Away': '',
-    })
-    setError('')
   }
 
   return (
     <div className="bg-dark/50 rounded-lg p-4">
       <h3 className="text-lg font-bold text-white mb-3">Create Custom Match</h3>
       <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Basic Info */}
         <div className="grid grid-cols-2 gap-3">
           <input
             type="text"
@@ -179,7 +183,6 @@ const CustomMatchForm = () => {
           />
         </div>
 
-        {/* Final Score */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-400 block mb-1">Final Home Score</label>
@@ -207,7 +210,6 @@ const CustomMatchForm = () => {
           </div>
         </div>
 
-        {/* ✅ GOAL MINUTES – NEW SECTION */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-gray-400 block mb-1">Home Goal Minutes (optional)</label>
@@ -232,7 +234,6 @@ const CustomMatchForm = () => {
         </div>
         <p className="text-xs text-gray-500">If left blank, goals will be generated randomly.</p>
 
-        {/* 1X2 Odds */}
         <div className="text-sm text-gray-400 font-medium">1X2 Odds</div>
         <div className="grid grid-cols-3 gap-3">
           <input
@@ -261,7 +262,6 @@ const CustomMatchForm = () => {
           />
         </div>
 
-        {/* Over/Under */}
         <div className="text-sm text-gray-400 font-medium">Over / Under (0.5 - 5.5)</div>
         <div className="grid grid-cols-6 gap-2 text-xs">
           {[0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5].map((line) => (
@@ -287,7 +287,6 @@ const CustomMatchForm = () => {
           ))}
         </div>
 
-        {/* Correct Score */}
         <div className="text-sm text-gray-400 font-medium">Correct Score</div>
         <div className="grid grid-cols-3 gap-2">
           {correctScores.map((cs, idx) => (
@@ -346,7 +345,6 @@ const CustomMatchForm = () => {
           </button>
         </div>
 
-        {/* HT/FT */}
         <div className="text-sm text-gray-400 font-medium">Half Time / Full Time</div>
         <div className="grid grid-cols-3 gap-2">
           {Object.keys(htftOdds).map((key) => (
