@@ -8,13 +8,14 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 })
 
 exports.handler = async (event) => {
+  // Only accept POST
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) }
   }
 
   const { action, userId, updates } = JSON.parse(event.body)
 
-  // Verify token and admin role
+  // Verify the token
   const authHeader = event.headers.authorization
   if (!authHeader) {
     return { statusCode: 401, body: JSON.stringify({ error: 'Unauthorized' }) }
@@ -28,7 +29,7 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: JSON.stringify({ error: 'Invalid token' }) }
   }
 
-  // Check admin role
+  // Check if user is admin
   const { data: adminCheck } = await regularClient
     .from('users')
     .select('role')
@@ -46,6 +47,7 @@ exports.handler = async (event) => {
       await regularClient.from('balances').delete().eq('user_id', userId)
       return { statusCode: 200, body: JSON.stringify({ success: true }) }
     }
+
     case 'updateUser': {
       if (updates.active === false) {
         try {
@@ -60,6 +62,7 @@ exports.handler = async (event) => {
       if (error) throw error
       return { statusCode: 200, body: JSON.stringify({ success: true, user: data?.[0] }) }
     }
+
     default:
       return { statusCode: 400, body: JSON.stringify({ error: 'Invalid action' }) }
   }
