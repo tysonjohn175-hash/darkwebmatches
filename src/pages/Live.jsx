@@ -65,14 +65,14 @@ const Live = () => {
 
   return (
     <div className="py-4">
-      <h1 className="text-2xl font-bold text-white mb-4">🔥 Live Matches</h1>
+      <h1 className="text-2xl font-bold text-white mb-4">Live Matches</h1>
       <span className="text-xs text-gray-400">Only custom matches are shown</span>
       {liveCustomMatches.length === 0 ? (
-        <EmptyState
-          icon="📺"
-          title="No live custom matches"
-          message="No custom matches are currently live. Create one in the admin panel."
-        />
+        <div className="bg-card rounded-lg p-8 text-center border border-white/5 mt-4">
+          <div className="text-6xl mb-4">📺</div>
+          <h3 className="text-xl font-bold text-white mb-2">No live matches</h3>
+          <p className="text-gray-400">Check back later for live matches.</p>
+        </div>
       ) : (
         <div className="space-y-4 mt-4">
           {liveCustomMatches.map((match) => (
