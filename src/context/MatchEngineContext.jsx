@@ -17,14 +17,87 @@ export const MatchEngineProvider = ({ children }) => {
   const intervalRef = useRef(null)
   const processingRef = useRef(false)
 
-  useEffect(() => {
-    localStorage.setItem('betzone_custom_matches', JSON.stringify(customMatches))
-  }, [customMatches])
+  // ----- Helper: Update odds based on score & time -----
+  const updateOddsAfterGoal = (match) => {
+    if (!match.markets?.h2h) return match
 
-  useEffect(() => {
-    localStorage.setItem('betzone_match_history', JSON.stringify(matchHistory))
-  }, [matchHistory])
+    const odds = match.markets.h2h
+    if (!odds.home || !odds.draw || !odds.away) return match
 
+    const homeProb = 1 / odds.home
+    const drawProb = 1 / odds.draw
+    const awayProb = 1 / odds.away
+    const totalProb = homeProb + drawProb + awayProb
+
+    // Normalize to sum=1
+    let finalHomeProb = homeProb / totalProb
+    let finalDrawProb = drawProb / totalProb
+    let finalAwayProb = awayProb / totalProb
+
+    const scoreDiff = match.goals.home - match.goals.away
+    const elapsed = match.elapsed || 0
+    const timeFactor = Math.min(elapsed / 90, 1) // 0..1
+
+    // 1. Score difference effect
+    if (scoreDiff > 0) {
+      // Home leads – increase home probability
+      const boost = 0.08 * (1 + timeFactor) * Math.min(scoreDiff, 3)
+      finalHomeProb = Math.min(finalHomeProb + boost, 0.9)
+      // Reduce away and draw proportionally
+      const reduce = boost / 2
+      finalAwayProb = Math.max(finalAwayProb - reduce, 0.01)
+      finalDrawProb = Math.max(finalDrawProb - reduce, 0.01)
+    } else if (scoreDiff < 0) {
+      // Away leads
+      const boost = 0.08 * (1 + timeFactor) * Math.min(Math.abs(scoreDiff), 3)
+      finalAwayProb = Math.min(finalAwayProb + boost, 0.9)
+      const reduce = boost / 2
+      finalHomeProb = Math.max(finalHomeProb - reduce, 0.01)
+      finalDrawProb = Math.max(finalDrawProb - reduce, 0.01)
+    } else {
+      // Draw – draw probability increases as time passes
+      if (timeFactor > 0.6) {
+        const boost = 0.1 * (timeFactor - 0.6) / 0.4
+        finalDrawProb = Math.min(finalDrawProb + boost, 0.5)
+        const reduce = boost / 2
+        finalHomeProb = Math.max(finalHomeProb - reduce, 0.01)
+        finalAwayProb = Math.max(finalAwayProb - reduce, 0.01)
+      }
+    }
+
+    // 2. Time effect: as match nears end, draw probability drops slightly (if not draw)
+    if (timeFactor > 0.8 && scoreDiff !== 0) {
+      const reduce = 0.05 * (timeFactor - 0.8) / 0.2
+      finalDrawProb = Math.max(finalDrawProb - reduce, 0.01)
+      // Add to leading team
+      if (scoreDiff > 0) {
+        finalHomeProb += reduce
+      } else {
+        finalAwayProb += reduce
+      }
+    }
+
+    // Normalize to sum = 1
+    const newTotal = finalHomeProb + finalDrawProb + finalAwayProb
+    if (newTotal === 0) return match
+
+    const newHome = (1 / (finalHomeProb / newTotal))
+    const newDraw = (1 / (finalDrawProb / newTotal))
+    const newAway = (1 / (finalAwayProb / newTotal))
+
+    // Clamp odds to reasonable range
+    const clamp = (v) => Math.min(Math.max(v, 1.01), 20)
+
+    match.markets.h2h = {
+      home: clamp(newHome),
+      draw: clamp(newDraw),
+      away: clamp(newAway),
+    }
+
+    return match
+  }
+
+  // ----- Other helper functions -----
   const generateGoalMinutes = (count) => {
     if (count === 0) return []
     const minutes = new Set()
@@ -92,7 +165,7 @@ export const MatchEngineProvider = ({ children }) => {
     }
   }
 
-  // Simulation effect (runs every second)
+  // ----- Main simulation effect (runs every second) -----
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current)
 
@@ -107,13 +180,10 @@ export const MatchEngineProvider = ({ children }) => {
       let matchesToArchive = []
 
       updatedMatches = updatedMatches.map(m => {
-        // ✅ Auto‑start is now handled by Vercel cron job – remove frontend auto‑start
-        // if (m.status === 'upcoming' && new Date(m.startTime) <= now) {
-        //   changesMade = true
-        //   return { ...m, status: 'live', elapsedSeconds: 0 }
-        // }
+        // Auto‑start is handled by Vercel cron – we keep the frontend timer for live simulation
+        // (cron sets status to 'live', so this block is redundant but safe)
+        // We'll keep it to handle edge cases.
 
-        // Live simulation
         if (m.status === 'live') {
           let newGoals = { ...m.goals }
           let events = [...(m.events || [])]
@@ -126,17 +196,33 @@ export const MatchEngineProvider = ({ children }) => {
           const currentMinute = Math.floor(newElapsedSeconds / 60)
           const prevMinute = Math.floor((newElapsedSeconds - 1) / 60)
 
+          let goalScored = false
+
           if (currentMinute !== prevMinute) {
             if (homeMinutes.includes(currentMinute)) {
               newGoals.home += 1
               events.push({ minute: currentMinute, team: 'home', type: 'goal' })
               goalTimeline.push({ minute: currentMinute, team: 'home', score: { ...newGoals } })
+              goalScored = true
             }
             if (awayMinutes.includes(currentMinute)) {
               newGoals.away += 1
               events.push({ minute: currentMinute, team: 'away', type: 'goal' })
               goalTimeline.push({ minute: currentMinute, team: 'away', score: { ...newGoals } })
+              goalScored = true
             }
+          }
+
+          // If a goal was scored, update odds dynamically
+          if (goalScored) {
+            // Update the match's odds based on new score and elapsed time
+            const updatedMatch = updateOddsAfterGoal({
+              ...m,
+              goals: newGoals,
+              elapsed: newElapsedSeconds, // we use elapsedSeconds for time factor
+            })
+            // Merge back the updated odds
+            m.markets = updatedMatch.markets
           }
 
           let halftimeScore = m.halftimeScore
