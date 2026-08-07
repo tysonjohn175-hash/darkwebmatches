@@ -14,12 +14,33 @@ const MatchCard = ({ match, isLive = false, showOdds = true }) => {
   const leagueLogo = match.league?.logo
   const homeScore = match.goals?.home ?? '-'
   const awayScore = match.goals?.away ?? '-'
-  const elapsed = match.fixture?.status?.elapsed || 0
-  const status = match.fixture?.status?.short || 'NS'
-  const matchTime = match.fixture?.date ? new Date(match.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+
+  let elapsedSeconds = 0
+  let status = match.fixture?.status?.short || 'NS'
+  let matchTime = match.fixture?.date ? new Date(match.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+
+  if (match.isCustom && match.customMatch) {
+    const cm = match.customMatch
+    elapsedSeconds = cm.elapsedSeconds || 0
+    status = cm.status === 'live' ? 'LIVE' : cm.status === 'upcoming' ? 'NS' : 'FT'
+    if (cm.status === 'HT') status = 'HT'
+    matchTime = cm.startTime ? new Date(cm.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+  } else {
+    const minutes = match.fixture?.status?.elapsed || 0
+    elapsedSeconds = minutes * 60
+  }
 
   const isLiveMatch = isLive || ['LIVE', '1H', '2H', 'HT'].includes(status)
-  const isHalfTime = status === 'HT' || (isLiveMatch && elapsed >= 45 && elapsed < 46)
+  const isHalfTime = status === 'HT' || (isLiveMatch && elapsedSeconds === 2700)
+
+  const formatTime = (seconds) => {
+    if (seconds === undefined || seconds === null) return '--:--'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  const displayTime = match.isCustom ? formatTime(elapsedSeconds) : `${Math.floor(elapsedSeconds / 60)}'`
 
   const oddsData = match.odds || null
 
@@ -65,7 +86,7 @@ const MatchCard = ({ match, isLive = false, showOdds = true }) => {
               ) : (
                 <>
                   <span className="text-red-500 text-sm font-bold animate-pulse">●</span>
-                  <span className="text-xs text-gray-400 ml-1">{elapsed}'</span>
+                  <span className="text-xs text-gray-400 ml-1">{displayTime}</span>
                   <div className="text-lg font-bold">{homeScore} : {awayScore}</div>
                 </>
               )

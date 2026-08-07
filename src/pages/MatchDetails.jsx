@@ -59,20 +59,30 @@ const MatchDetails = () => {
       return
     }
 
-    const isLive = foundMatch.status === 'live'
-    const isFinished = foundMatch.status === 'finished' || foundMatch.status === 'archived'
-    const elapsed = foundMatch.elapsed || 0
+    // Ensure all nested properties exist
+    const safeMatch = {
+      ...foundMatch,
+      goals: foundMatch.goals || { home: 0, away: 0 },
+      goalTimeline: foundMatch.goalTimeline || [],
+      events: foundMatch.events || [],
+      halftimeScore: foundMatch.halftimeScore || null,
+      markets: foundMatch.markets || {},
+    }
+
+    const isLive = safeMatch.status === 'live'
+    const isFinished = safeMatch.status === 'finished' || safeMatch.status === 'archived'
+    const elapsed = safeMatch.elapsedSeconds || 0
     const isHalfTime = elapsed === 2700
 
     const matchData = {
       fixture: {
-        id: `custom_${foundMatch.id}`,
+        id: `custom_${safeMatch.id}`,
         status: {
           short: isFinished ? 'FT' : isHalfTime ? 'HT' : isLive ? 'LIVE' : 'NS',
           elapsed: elapsed,
           long: isFinished ? 'Finished' : isHalfTime ? 'Half-time' : isLive ? 'Live' : 'Not Started',
         },
-        date: foundMatch.startTime,
+        date: safeMatch.startTime,
         venue: {
           name: 'Custom Match',
           city: 'BetZone',
@@ -80,26 +90,23 @@ const MatchDetails = () => {
       },
       teams: {
         home: {
-          name: foundMatch.homeTeam,
+          name: safeMatch.homeTeam,
           logo: null,
         },
         away: {
-          name: foundMatch.awayTeam,
+          name: safeMatch.awayTeam,
           logo: null,
         },
       },
       league: {
-        name: foundMatch.league || 'Custom League',
+        name: safeMatch.league || 'Custom League',
         logo: null,
       },
-      goals: {
-        home: foundMatch.goals?.home || 0,
-        away: foundMatch.goals?.away || 0,
-      },
+      goals: safeMatch.goals,
       isCustom: true,
       isArchived: isArchived,
       isFinished: isFinished,
-      customMatch: foundMatch,
+      customMatch: safeMatch,
     }
 
     setMatch(matchData)
@@ -165,6 +172,10 @@ const MatchDetails = () => {
     )
   }
 
+  // ✅ Safe access to arrays
+  const goalTimeline = match.customMatch?.goalTimeline || []
+  const halftimeScore = match.customMatch?.halftimeScore
+
   return (
     <div className="py-4 space-y-6">
       <div className="bg-card rounded-lg p-4 border border-white/5">
@@ -217,20 +228,20 @@ const MatchDetails = () => {
           {match.fixture.status.long} • {match.fixture.venue.city}
         </div>
 
-        {match.isCustom && match.customMatch?.halftimeScore && (
+        {halftimeScore && (
           <div className="mt-2 p-2 bg-dark/50 rounded-lg text-center">
             <div className="text-xs text-gray-400">Half-time Score</div>
             <div className="text-sm font-bold text-yellow-400">
-              {match.customMatch.halftimeScore.home} : {match.customMatch.halftimeScore.away}
+              {halftimeScore.home} : {halftimeScore.away}
             </div>
           </div>
         )}
 
-        {match.isCustom && match.customMatch?.goalTimeline && match.customMatch.goalTimeline.length > 0 && (
+        {goalTimeline.length > 0 && (
           <div className="mt-2 p-2 bg-dark/50 rounded-lg">
             <div className="text-xs text-gray-400 mb-1">⚽ Goal Timeline</div>
             <div className="flex flex-wrap gap-1">
-              {match.customMatch.goalTimeline.map((g, idx) => (
+              {goalTimeline.map((g, idx) => (
                 <span key={idx} className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
                   {g.minute}' {g.team} ({g.score.home}:{g.score.away})
                 </span>
