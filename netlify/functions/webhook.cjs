@@ -2,16 +2,19 @@
 const crypto = require('crypto')
 const { createClient } = require('@supabase/supabase-js')
 
+// Get environment variables (set in Netlify dashboard)
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 exports.handler = async (event) => {
+  // Only accept POST requests
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' }
   }
 
+  // Verify Paystack signature
   const signature = event.headers['x-paystack-signature']
   if (!signature) {
     return { statusCode: 401, body: 'Unauthorized' }
@@ -25,6 +28,7 @@ exports.handler = async (event) => {
     return { statusCode: 401, body: 'Invalid signature' }
   }
 
+  // Parse the payload
   const payload = JSON.parse(event.body)
   if (payload.event !== 'charge.success') {
     return { statusCode: 200, body: 'Ignored' }
@@ -32,7 +36,7 @@ exports.handler = async (event) => {
 
   const data = payload.data
   const reference = data.reference
-  const amount = data.amount / 100
+  const amount = data.amount / 100 // kobo → GHS
   const customerEmail = data.customer.email
 
   // Find user by email
@@ -47,7 +51,7 @@ exports.handler = async (event) => {
     return { statusCode: 404, body: 'User not found' }
   }
 
-  // Get current available balance
+  // Get current balance
   const { data: current, error: fetchError } = await supabase
     .from('balances')
     .select('available')
@@ -61,7 +65,7 @@ exports.handler = async (event) => {
 
   const newAvailable = (current?.available || 0) + amount
 
-  // Update balance (no raw())
+  // Update balance
   const { error: balanceError } = await supabase
     .from('balances')
     .update({ available: newAvailable })
