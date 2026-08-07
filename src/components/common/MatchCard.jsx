@@ -14,34 +14,14 @@ const MatchCard = ({ match, isLive = false, showOdds = true }) => {
   const leagueLogo = match.league?.logo
   const homeScore = match.goals?.home ?? '-'
   const awayScore = match.goals?.away ?? '-'
-
-  let elapsedSeconds = 0
-  let status = match.fixture?.status?.short || 'NS'
-  let matchTime = match.fixture?.date ? new Date(match.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
-
-  if (match.isCustom && match.customMatch) {
-    const cm = match.customMatch
-    elapsedSeconds = cm.elapsedSeconds || 0
-    status = cm.status === 'live' ? 'LIVE' : cm.status === 'upcoming' ? 'NS' : 'FT'
-    if (cm.status === 'HT') status = 'HT'
-    matchTime = cm.startTime ? new Date(cm.startTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
-  } else {
-    const minutes = match.fixture?.status?.elapsed || 0
-    elapsedSeconds = minutes * 60
-  }
+  const elapsed = match.fixture?.status?.elapsed || 0
+  const status = match.fixture?.status?.short || 'NS'
+  const matchTime = match.fixture?.date ? new Date(match.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
 
   const isLiveMatch = isLive || ['LIVE', '1H', '2H', 'HT'].includes(status)
-  const isHalfTime = status === 'HT' || (isLiveMatch && elapsedSeconds === 2700)
+  const isHalfTime = status === 'HT' || (isLiveMatch && elapsed >= 45 && elapsed < 46)
 
-  const formatTime = (seconds) => {
-    if (seconds === undefined || seconds === null) return '--:--'
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-  }
-
-  const displayTime = match.isCustom ? formatTime(elapsedSeconds) : `${Math.floor(elapsedSeconds / 60)}'`
-
+  // ✅ Get odds data – from match.odds (already set in Home)
   const oddsData = match.odds || null
 
   const handleAddBet = (market, oddsValue, label, e) => {
@@ -64,7 +44,7 @@ const MatchCard = ({ match, isLive = false, showOdds = true }) => {
     )
   }
 
-  const hasOdds = oddsData && (oddsData.h2h || oddsData.overUnder)
+  const hasOdds = oddsData && (oddsData.home || oddsData.draw || oddsData.away)
 
   return (
     <Link to={`/match/${match.fixture.id}`} className="block">
@@ -86,7 +66,7 @@ const MatchCard = ({ match, isLive = false, showOdds = true }) => {
               ) : (
                 <>
                   <span className="text-red-500 text-sm font-bold animate-pulse">●</span>
-                  <span className="text-xs text-gray-400 ml-1">{displayTime}</span>
+                  <span className="text-xs text-gray-400 ml-1">{elapsed}'</span>
                   <div className="text-lg font-bold">{homeScore} : {awayScore}</div>
                 </>
               )
@@ -103,16 +83,9 @@ const MatchCard = ({ match, isLive = false, showOdds = true }) => {
           <div className="mt-2 flex flex-wrap gap-1 justify-end">
             {hasOdds ? (
               <>
-                {oddsData.h2h && (
-                  <>
-                    <OddsButton label="1" oddsValue={oddsData.h2h.home} market="1X2_home" />
-                    <OddsButton label="X" oddsValue={oddsData.h2h.draw} market="1X2_draw" />
-                    <OddsButton label="2" oddsValue={oddsData.h2h.away} market="1X2_away" />
-                  </>
-                )}
-                {oddsData.overUnder && (
-                  <OddsButton label="O/U" oddsValue={oddsData.overUnder.over} market="over" />
-                )}
+                <OddsButton label="1" oddsValue={oddsData.home} market="1X2_home" />
+                <OddsButton label="X" oddsValue={oddsData.draw} market="1X2_draw" />
+                <OddsButton label="2" oddsValue={oddsData.away} market="1X2_away" />
               </>
             ) : (
               <span className="text-xs text-gray-500">Odds unavailable</span>

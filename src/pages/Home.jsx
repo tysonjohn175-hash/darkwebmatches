@@ -10,7 +10,7 @@ import { Search, X, CalendarDays } from 'lucide-react'
 const Home = () => {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const { customMatches, loading: matchLoading } = useMatchEngine()
+  const { customMatches } = useMatchEngine()
   const { user } = useSupabase()
   const isAdmin = user?.role === 'admin'
 
@@ -18,17 +18,24 @@ const Home = () => {
     setLoading(false)
   }, [])
 
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value)
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+  }
+
   const customToMatchCard = (match) => {
     const isLive = match.status === 'live'
     const isUpcoming = match.status === 'upcoming'
-    const oddsData = match.markets?.h2h || null
 
     return {
       fixture: {
         id: `custom_${match.id}`,
         status: {
           short: isLive ? 'LIVE' : isUpcoming ? 'NS' : 'FT',
-          elapsed: match.elapsedSeconds || 0,
+          elapsed: match.elapsed || 0,
           long: isLive ? 'Live' : isUpcoming ? 'Not Started' : 'Finished',
         },
         date: match.startTime,
@@ -55,7 +62,8 @@ const Home = () => {
         home: match.goals?.home || 0,
         away: match.goals?.away || 0,
       },
-      odds: oddsData,
+      // ✅ Pass the entire markets object (contains h2h, overUnder, etc.)
+      odds: match.markets || null,
       isCustom: true,
       customMatch: match,
     }
@@ -66,14 +74,6 @@ const Home = () => {
 
   const allLive = customLive
   const allUpcoming = customUpcoming
-
-  const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value)
-  }
-
-  const clearSearch = () => {
-    setSearchQuery('')
-  }
 
   const getFilteredCustomMatches = () => {
     if (!searchQuery.trim()) return []
@@ -89,7 +89,7 @@ const Home = () => {
   const filteredMatches = getFilteredCustomMatches()
   const isSearching = searchQuery.trim().length > 0
 
-  if (loading || matchLoading) {
+  if (loading) {
     return (
       <div className="space-y-4 pb-4">
         <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl h-48 animate-pulse" />
@@ -141,13 +141,13 @@ const Home = () => {
     )
   }
 
-  // ✅ Carousel appears when there are 2 or more upcoming matches
-  const showCarousel = user && allUpcoming.length >= 2
+  const showCarousel = user && allUpcoming.length > 0
   const showLive = allLive.length > 0
-  const noMatchesMessage = user && !showCarousel && !showLive && allUpcoming.length === 0
+  const noMatchesMessage = user && !showCarousel && !showLive
 
   return (
     <div className="space-y-6 pb-4">
+      {/* Search bar always visible */}
       <div className="flex items-center gap-2 bg-card rounded-lg p-2 border border-white/5">
         <Search size={20} className="text-gray-400" />
         <input
@@ -189,7 +189,6 @@ const Home = () => {
           {showCarousel ? (
             <HeroCarousel matches={allUpcoming} />
           ) : (
-            // ✅ If only 1 upcoming match, show hero instead
             <Hero />
           )}
 
